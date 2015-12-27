@@ -1,10 +1,13 @@
 iTunes scripts for cleaning music metadata.
 
 Drop these into the iTunes/Scripts folder to enable extra iTunes functionality.
+  For OSX, scripts are in applescript.
+  For Windows, scripts are in vbscript.
+
+
 
 Some scripts are from Doug's Scripts, but heavily modified:
-
+  
   dougsscripts.com
-
-  Attribution / license copied for specific files.
-
+  
+Attribution / license copied for specific files.

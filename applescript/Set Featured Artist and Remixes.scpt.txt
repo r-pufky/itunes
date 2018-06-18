@@ -1,0 +1,178 @@
+(* Set Featured artists and Remixes for a given song selection.
+
+Author: Robert M. Pufky (itunes-applescripts@crazymonkies.com)
+
+Bundled with ASObjC Runner, which enables a ton of great features applescript lacks, as well as speed improvements:
+
+  http://macosxautomation.com/applescript/apps/runner_vanilla.html
+  
+
+SCRIPT WILL CHECK AND DIRECT YOU TO INSTALL ASObjC Runner IF NOT INSTALLED!
+
+Formatting (remix, featured artists will only show if they are added):
+
+song name (type1, type2 Remix) (Featuring artist1, artist2)
+*)
+
+property app_name : "Set Featured Artist and Remixes"
+property feature_prepend : "Featuring "
+property remix_append : " Remix"
+property delimeter : ", "
+property selection_total_tracks : 0
+property selection_current_track : 0
+
+using terms from application "ASObjC Runner.app"
+	my DetermineAsobjcRunnerLibraryLocation()
+	
+	tell application "iTunes"
+		set selected_tracks to selection
+		if selected_tracks is not {} then
+			set fixed_indexing_value to fixed indexing
+			set fixed indexing to true
+			set selection_total_tracks to count of selected_tracks
+			set song_name_append to my GetFeaturedAndRemixes()
+			my SetupProgress()
+			repeat with current_track in selected_tracks
+				set track_name to current_track's name
+				log track_name
+				set selection_current_track to selection_current_track + 1
+				my AdjustProgress(track_name)
+				if song_name_append is not "" then
+					set current_track's name to track_name & song_name_append
+				end if
+			end repeat
+			copy fixed_indexing_value to fixed indexing
+			my CloseProgress()
+		end if
+	end tell
+	
+	-- GetFeaturedAndRemixes: Get user specified featured artists and remixes
+	-- args:
+	--  None
+	-- Returns:
+	--  String containing text to prepend or a blank string ("")
+	on GetFeaturedAndRemixes()
+		set featured_artists to my GetTextList("Enter featured artists, one artist per entry")
+		set remixes to my GetTextList("Enter remix styles, one remix per entry")
+		set song_name_append to ""
+		if remixes is not {} then
+			set song_name_append to " (" & ListToString(remixes, delimeter) & remix_append & ")"
+		end if
+		if featured_artists is not {} then
+			set song_name_append to song_name_append & " (" & feature_prepend & ListToString(featured_artists, delimeter) & ")"
+		end if
+		log "Artists: " & featured_artists
+		log "Remixes: " & remixes
+		log "Append to Track Name: " & song_name_append
+		return song_name_append
+	end GetFeaturedAndRemixes
+	
+	-- GetTextList: Gets a list of text options from user dialog boxes
+	-- args:
+	--  prompt: String prompt to use for the dialog box
+	-- Returns:
+	--  List containing text options recieved, empty if none.
+	on GetTextList(prompt)
+		set text_list to {}
+		repeat
+			set results to (display dialog prompt default answer "" buttons {"Finished", "Add"})
+			if the button returned of results is not "Finished" then
+				set end of text_list to text returned of results
+			else
+				exit repeat
+			end if
+		end repeat
+		return text_list
+	end GetTextList
+	
+	-- SetupProgress: Setup a progress bar, using a template
+	-- Args:
+	--  None
+	-- Returns:
+	--  None
+	on SetupProgress()
+		tell application "ASObjC Runner.app"
+			«event aÂc0aÂC0»
+			set properties of «class aÂs8» to {«class aÂp4»:false, «class aÂp1»:"Updating track names: " & selection_total_tracks & " Tracks", «class aÂp2»:"", «class aÂp7»:false, «class aÂp8»:selection_total_tracks, «class aÂpa»:selection_current_track}
+			activate
+			«event bÂc0bÂC0»
+		end tell
+	end SetupProgress
+	
+	
+	-- AdjustProgress: Updates the progress bar.
+	-- Args:
+	--  track_name: String name of the track
+	-- Returns:
+	--  None
+	-- Error:
+	--  If user quits, aborts the program
+	on AdjustProgress(track_name)
+		tell application "ASObjC Runner.app"
+			activate
+			set properties of «class aÂs8» to {«class aÂp2»:track_name, «class aÂpa»:selection_current_track}
+			if «class aÂp5» of «class aÂs8» then
+				error "User aborted updating track names"
+			end if
+		end tell
+	end AdjustProgress
+	
+	
+	-- CloseProgress: Hides the progress bar.
+	-- Args:
+	--  None
+	-- Returns:
+	--  None
+	on CloseProgress()
+		tell application "ASObjC Runner.app" to «event cÂc0cÂC0»
+	end CloseProgress
+	
+	-- ListToString: Converts a list of strings to a string, using passed delimeter to join
+	-- Args:
+	--  original_list: List containing strings to combine
+	--  delimeter: String to join list with
+	-- Returns:
+	--  String joined on delimeter for list elements
+	on ListToString(original_list, delimeter)
+		set original_delimeter to AppleScript's text item delimiters
+		try
+			set AppleScript's text item delimiters to {delimeter}
+			set whole_string to original_list as text
+		on error error_message number error_number
+			set AppleScript's text item delimiters to original_delimeter
+			error "List to string conversion error: " & error_number & " - " & error_string
+		end try
+		set AppleScript's text item delimiters to original_delimeter
+		return whole_string
+	end ListToString
+	
+	-- DetermineAsobjcRunnerLibraryLocation: Determines the correct 'ASObjC Runnner' application to use.
+	-- Args:
+	--  None
+	-- Returns:
+	--  String path to 'ASObjC Runner' application resource to use
+	on DetermineAsobjcRunnerLibraryLocation()
+		tell application "Finder"
+			if not (exists POSIX file "/Applications/ASObjC Runner.app") then
+				log "No ASObjC Runner.app library found"
+				set results to the text of button returned of (display dialog "ASObjC Runner.app must be installed to use this script.  Please choose:" with title "ASObjC Runner.app is not on your system." with icon 2 buttons {"Abort", "Visit Wesbite", "Download"})
+				if results = "Abort" then
+					log "Action: Abort"
+				else if results = "Download" then
+					tell application "Finder"
+						open location asobjc_runner_download_url
+					end tell
+					log "Action: Download - " & asobjc_runner_download_url
+				else
+					tell application "Finder"
+						open location asobjc_runner_url
+					end tell
+					log "Action: Visting Wesbite - " & asobjc_runner_url
+				end if
+				error "Title Case: No 'ASObjC Runner.app' library found."
+			else
+				log "Using default system ASObjC Runner.app"
+			end if
+		end tell
+	end DetermineAsobjcRunnerLibraryLocation
+end using terms from

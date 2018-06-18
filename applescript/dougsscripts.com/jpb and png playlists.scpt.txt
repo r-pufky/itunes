@@ -1,0 +1,83 @@
+(*
+"Make JPEG and PNG Playlists" for iTunes
+written by Doug Adams
+dougadams@mac.com
+
+v1.0 feb 25 2012
+-- initial release
+
+Get more free AppleScripts and info on writing your own
+at Doug's AppleScripts for iTunes
+http://dougscripts.com/itunes/
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+Get a copy of the GNU General Public License by writing to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+or visit http://www.gnu.org/copyleft/gpl.html
+
+*)
+
+
+
+property jPlaylistName : "Artwork is JPEG_"
+property pPlaylistName : "Artwork is PNG_"
+
+global jPlaylist, pPlaylist, jCount, pCount
+
+tell application "iTunes"
+	display dialog "This script will create two playlists populated with Music library tracks that contain, respectively, JPEG artwork and PNG artwork." & return & return & "This will probably take a few minutes so be patient as tracks are copied to the playlists…" buttons {"Cancel", "Proceed…"} default button 2 with icon 1 with title "Make JPEG and PNG Playlists"
+
+	set theLibrary to some playlist whose special kind is Music
+	set jCount to 0
+	set pCount to 0
+	try
+		repeat with p in (get every playlist whose name starts with jPlaylistName)
+			delete p
+		end repeat
+	end try
+	try
+		repeat with p in (get every playlist whose name starts with pPlaylistName)
+			delete p
+		end repeat
+	end try
+	set jPlaylist to (make new playlist with properties {name:jPlaylistName})
+	set pPlaylist to (make new playlist with properties {name:pPlaylistName})
+	reveal jPlaylist
+
+	repeat with i from 1 to (index of last track of theLibrary)
+		try
+			set theTrack to track i of theLibrary
+			if (exists artworks of theTrack) then
+				try
+					set fmt to (get format of artwork 1 of theTrack) as text
+					if fmt contains "JPEG" then my copyTrackToJPEGPlaylist(theTrack)
+					if fmt contains "PNG" then my copyTrackToPNGPlaylist(theTrack)
+				end try
+			end if
+		end try
+	end repeat
+	#reveal jPlaylist
+end tell
+
+to copyTrackToJPEGPlaylist(theTrack)
+	tell application "iTunes"
+		try
+			duplicate theTrack to jPlaylist
+			set jCount to jCount + 1
+			set name of jPlaylist to (jPlaylistName & jCount) as text
+		end try
+	end tell
+end copyTrackToJPEGPlaylist
+
+to copyTrackToPNGPlaylist(theTrack)
+	tell application "iTunes"
+		try
+			duplicate theTrack to pPlaylist
+			set pCount to pCount + 1
+			set name of pPlaylist to (pPlaylistName & pCount) as text
+		end try
+	end tell
+end copyTrackToPNGPlaylist

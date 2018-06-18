@@ -1,0 +1,14 @@
+(*
+Strip lyrics from mp3's
+*)
+
+property default_lyrics : ""
+
+tell application "iTunes"
+	set selected_tracks to selection
+	if selected_tracks is not {} then
+		repeat with current_track in selected_tracks
+			set current_track's lyrics to default_lyrics
+		end repeat
+	end if
+end tell

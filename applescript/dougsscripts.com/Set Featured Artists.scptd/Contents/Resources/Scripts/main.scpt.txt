@@ -1,0 +1,44 @@
+(*
+Pull featured artists from artist tag and move to song name:
+
+Artists: Artist, featured 1, featured 2, etc.
+Song: This is the song name (Featuring featured 1, featured 2, etc.)
+*)
+
+property separator : ","
+property feature_tag_open : " (Featuring "
+property feature_tag_close : ")"
+
+tell application "iTunes"
+	set selected_tracks to selection
+	if selected_tracks is not {} then
+		repeat with current_track in selected_tracks
+			set original_track_name to the name of current_track
+			set original_artist_name to the artist of current_track
+
+			if (offset of separator in original_artist_name) > 0 then
+				set featured_artists to my GenerateFeaturedArtists(original_artist_name)
+				set original_artist to my GenerateOriginalArtist(original_artist_name)
+				set new_track_name to original_track_name & feature_tag_open & featured_artists & feature_tag_close
+
+				set current_track's name to new_track_name
+				set current_track's artist to original_artist
+			end if
+		end repeat
+	end if
+end tell
+
+(* Take the artist line, break on first separator, and removing beginning whitespace *)
+on GenerateFeaturedArtists(original_artist_name)
+	set featured_artists to text ((offset of separator in original_artist_name) + 1) thru length of original_artist_name
+	repeat while character 1 of featured_artists = " "
+		set featured_artists to text 2 thru length of featured_artists
+	end repeat
+	return featured_artists
+end GenerateFeaturedArtists
+
+(* Take the artist line, break on the first separator and use everything before that for the original artist *)
+on GenerateOriginalArtist(original_artist_name)
+	set original_artist to text 1 thru ((offset of separator in original_artist_name) - 1) of original_artist_name
+	return original_artist
+end GenerateOriginalArtist

@@ -1,0 +1,418 @@
+(* Proper Title Capitalization for Tracks.
+
+Author: Robert M. Pufky (itunes-applescripts@crazymonkies.com)
+
+Bundled with ASObjC Runner, which enables a ton of great features applescript lacks, as well as speed improvements:
+
+  http://macosxautomation.com/applescript/apps/runner_vanilla.html
+  
+
+SCRIPT WILL CHECK AND DIRECT YOU TO INSTALL ASObjC Runner IF NOT INSTALLED!
+
+
+Title Case Specification Used
+	- http://suite101.com/article/how-to-write-in-title-case-a73866
+
+	Implemented rules:
+	- Always cap first and last words
+	- Capitalize all nouns and verbs (implied via chicago rules application)
+
+	Additional "Chicago" Rules
+	- Capitalize all nouns, pronouns, adjectives, verbs, adverbs, and subordinate conjunctions
+		http://en.wikipedia.org/wiki/Conjunction_(grammar)#Subordinating_conjunctions
+		http://grammar.yourdictionary.com/parts-of-speech/conjunctions/list-of-subordinating-conjunctions.html
+	- Lowercase of all articles, coordinate conjunctions, and prepositions, when they are not the first or last word.
+		http://en.wikipedia.org/wiki/English_articles
+		http://en.wikipedia.org/wiki/Conjunction_(grammar)#Coordinating_conjunctions
+		http://grammar.ccc.commnet.edu/grammar/preposition_list.htm
+		http://en.wikipedia.org/wiki/List_of_English_prepositions
+			* Using only single word prepositions
+		* Words ordered by frequency in english: http://www.wordfrequency.info/5k_lemmas.asp?s=y
+
+
+Methodology Implemented:
+	- If the word is in the exculsions list, convert to specified format.
+	- If the word is the first or last word in line, cap case it
+	- If the word follows an 'end of sentence' character, cap case it.
+		Ex.:: my fun album: test: the ablum (remix) -> Test: The Album (Remix)
+
+	- If the word is an article, coordinate conjunction, or preposition, lower case it
+	- cap case remaining words (nouns, verbs, etc)
+*)
+
+-- words to exclude.  If found, convert to case specified in this list.  Add custom casings for words in this list.
+property exclusion_list : {"DJ", "FM", "USA", "WDPK", "OYF’N", "UR", "TV", "MGM", "DVD", "ABC", "CD", "USSR", "CA", "WA", "NY", "NYC", "LP", "EP", "VHS", "UK", "GB", "'Bout", "'Cause", "o'", "'n'", "n'", "McCartney", "vs.", "de", "von", "van", "BBC", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "DMB", "JTR"}
+-- DMB - Dave Matthews Band
+-- JTR - JTR - dave matthews band song (John The Revelator)
+
+
+
+
+
+-- No normal user changes below this line --
+
+
+
+
+
+
+-- characters denoting a new line (start of sentence), i.e. test: the ablum (remix) -> Test: The Album (Remix)
+property end_of_sentence_characters : {":", "(", ")", "-", "_", "!", "\\", "\"", "$", "%", "&", "/", "=", "¿", "?", "@", "¡", "|", "#", "¢", "∞", "“", "”", "[", "]", "{", "}", "*", "+", "•", "«", "»", "—", "´", "`", "º", "ª", "…", ";", "."}
+
+-- words requiring lowercase, ordered by frequency
+property article_words : {"the", "a", "some", "an"}
+property coordinate_conjunction_words : {"and", "or", "so", "yet", "nor", "but", "for"}
+property preposition_single_words : {"of", "to", "with", "at", "from", "into", "as", "between", "out", "on", "over", "during", "without", "toward", "off", "including", "up", "per", "upon", "before", "than", "save", "despite", "onto", "throughout", "down", "by", "through", "until", "following", "next", "under", "but", "aside", "except", "below", "beneath", "beside", "towards", "behind", "outside", "plus", "regarding", "opposite", "for", "pace", "via", "like", "worth", "since", "in", "given", "versus", "concerning", "unlike", "past", "inside", "besides", "near", "midst", "pro", "atop", "round", "beyond", "within", "till", "astride", "athwart", "barring", "betwixt", "circa", "excluding", "failing", "lest", "mid", "minus", "modulo", "notwithstanding", "qua", "sans", "thru", "thruout", "times", "underneath", "unto", "vs.", "v.", "vice"}
+property combined_lowercase_list : article_words & coordinate_conjunction_words & preposition_single_words
+property asobjc_runner_url : "http://macosxautomation.com/applescript/apps/runner_vanilla.html"
+property asobjc_runner_download_url : "http://macosxautomation.com/applescript/apps/ASObjC_Runner.zip"
+property selection_total_tracks : 0
+property selection_current_track : 0
+
+using terms from application "ASObjC Runner.app"
+	my DetermineAsobjcRunnerLibraryLocation()
+	
+	tell application "iTunes"
+		set selected_tracks to selection
+		if selected_tracks is not {} then
+			set fixed_indexing_value to fixed indexing
+			set fixed indexing to true
+			set selection_total_tracks to count of selected_tracks
+			my SetupProgress()
+			repeat with current_track in selected_tracks
+				set selection_current_track to selection_current_track + 1
+				my AdjustProgress(current_track's name)
+				set current_track's name to my GetProperCapitalization(current_track's name)
+				set current_track's album to my GetProperCapitalization(current_track's album)
+				set current_track's artist to my GetProperCapitalization(current_track's artist)
+				set current_track's album artist to my GetProperCapitalization(current_track's album artist)
+			end repeat
+			copy fixed_indexing_value to fixed indexing
+			my CloseProgress()
+		end if
+	end tell
+	
+	-- Takes a string and proper case that string
+	on GetProperCapitalization(sentence)
+		log "Called GetProperCapitalization('" & sentence & "')"
+		set sentence to StringToList(sentence, " ")
+		set last_word to ""
+		set new_sentence to {}
+		set total_words to (count sentence)
+		set word_index to 1
+		repeat with single_word in sentence
+			set exploded_word to my ExplodeWord(single_word)
+			set processed_word to my ProcessWord(item 2 of exploded_word, my CheckSpecialLastCharacter(last_word), word_index, total_words)
+			copy my RecombineWord(exploded_word, processed_word) to end of new_sentence
+			set word_index to word_index + 1
+			set last_word to single_word
+		end repeat
+		set results to my ListToString(new_sentence, " ")
+		log "GetProperCapitalization Results: " & results
+		return results
+	end GetProperCapitalization
+	
+	
+	-- ExplodeWord: Explodes a word for beginning/ending special characters.
+	-- Args:
+	--   single_word: String word to process
+	-- Returns:
+	--   List containing {"" or special character, string word, "" or special character}.  Special characters are determined from end_of_sentence_characters
+	on ExplodeWord(single_word)
+		set first_character to ""
+		set last_character to ""
+		if (length of single_word) > 1 then
+			set word_beginning to character 1 of single_word
+			set word_ending to character (length of single_word) of single_word
+			tell application "ASObjC Runner.app"
+				set begin_index to («event DÂc0DÂC0» end_of_sentence_characters with «class gÂP2» given «class gÂP1»:word_beginning) as string
+				set end_index to («event DÂc0DÂC0» end_of_sentence_characters with «class gÂP2» given «class gÂP1»:word_ending) as string
+			end tell
+			log "Called ExplodeWord(" & single_word & "): begin_index: " & begin_index & ", end_index: " & end_index
+			if begin_index is not "" then
+				set first_character to item begin_index of end_of_sentence_characters
+				set single_word to text 2 thru (length of single_word) of single_word
+			end if
+			if end_index is not "" then
+				set last_character to item end_index of end_of_sentence_characters
+				if (length of single_word) > 1 then
+					set single_word to text 1 thru ((length of single_word) - 1) of single_word
+				else
+					-- if both characters in a 2-character word are specials, there is no word.
+					set single_word to ""
+				end if
+			end if
+			log "ExplodeWord Results: '" & first_character & "','" & single_word & "','" & last_character & "'"
+		else
+			log "ExplodeWord Results: 1-character word, defaulting to: '','" & single_word & "',''"
+		end if
+		return {first_character, single_word, last_character}
+	end ExplodeWord
+	
+	
+	-- RecombineWord: Recombines a word with special characters (from ExplodeWord), cap word if leading special.
+	-- Args:
+	--   exploded_word: List containing {"" or special character, string word, "" or special character}
+	--   processed_word: String containing the newly formatted 'string word'
+	-- Returns:
+	--   String containing the combination of exploded_word[1], processed_word, and exploded_word[2]
+	on RecombineWord(exploded_word, processed_word)
+		set special_index to 0
+		tell application "ASObjC Runner.app"
+			set special_index to («event DÂc0DÂC0» end_of_sentence_characters with «class gÂP2» given «class gÂP1»:item 1 of exploded_word) as string
+		end tell
+		if special_index > 0 then
+			set processed_word to my CapCaseWord(processed_word)
+		end if
+		return item 1 of exploded_word & processed_word & item 3 of exploded_word
+	end RecombineWord
+	
+	
+	-- ProcessWord: Process's a given word based on position in sentence, using rules above
+	-- Args:
+	--  single_word: String containing the word to process
+	--  last_word_special: Boolean true if last word ended in a special character
+	--  word_index: Integer position of word in the current sentence
+	--  total_words: Integer total number of words in the sentencee
+	on ProcessWord(single_word, last_word_special, word_index, total_words)
+		-- Check for word in exclusion list, convert to case in exclusion list, return
+		set results to my ProcessExclusionList(single_word)
+		if results is not "" then
+			return results
+		end if
+		
+		-- If word is first or last in sentence, cap case, return
+		if word_index = 1 or word_index = total_words then
+			return my CapCaseWord(single_word)
+		end if
+		
+		-- If word follows a end of sentence character, cap case, return
+		if last_word_special then
+			return my CapCaseWord(single_word)
+		end if
+		
+		-- If word in lower case list, lower case, return
+		if my WordInWordsToLowerCase(single_word) then
+			return my LowerCaseWord(single_word)
+		end if
+		
+		-- cap case, return
+		return my CapCaseWord(single_word)
+	end ProcessWord
+	
+	
+	-- ProcessExclusionList: Determines if word is in the exclusion.
+	-- Args:
+	--   single_word: String word to process
+	-- Returns:
+	--   String containing the exclusion word as formatted in the property exclusion_list, or ""
+	on ProcessExclusionList(single_word)
+		set quoted_word to single_word
+		tell application "ASObjC Runner.app"
+			set quoted_word to «event nÂc0nÂC0» quoted_word given «class nÂP1»:«constant bÂe0bÂed»
+			-- Bug, using a ) here will result in a mis-matched paren.  Short circuit as AS has no concept of escaping.
+			if quoted_word is not ")" then
+				set results to («event hÂc0hÂC0» exclusion_list given «class hÂP1»:{"self matches[c] '" & quoted_word & "'"}) as string
+			else
+				log "Adjusting for ) escaping bug …"
+				set results to ")"
+			end if
+		end tell
+		log "Called ProcessExclusionList(" & single_word & "): " & results
+		return results
+	end ProcessExclusionList
+	
+	
+	-- CapCaseWord: Returns the capped case word.
+	-- Args:
+	--   single_word: String word to process
+	-- Returns:
+	--   String containing Capped Case word
+	on CapCaseWord(single_word)
+		log "Called CapCaseWord(" & single_word & ")"
+		tell application "ASObjC Runner.app"
+			set single_word to «event nÂc0nÂC0» single_word given «class nÂP1»:«constant bÂe0bÂe3»
+		end tell
+		log "CapCaseWord Results: " & single_word
+		return single_word
+	end CapCaseWord
+	
+	
+	-- LowerCaseWord: Returns the lower case word.
+	-- Args:
+	--   single_word: String word to process
+	-- Returns:
+	--   String containing lower case word
+	on LowerCaseWord(single_word)
+		tell application "ASObjC Runner.app"
+			set single_word to «event nÂc0nÂC0» single_word given «class nÂP1»:«constant bÂe0bÂe2»
+		end tell
+		log "LowerCaseWord: " & single_word
+		return single_word
+	end LowerCaseWord
+	
+	
+	-- CheckSpecialLastCharacter: Determines if the last character in the last word is a end of sentence special character
+	-- Args:
+	--   last_word: String word to process
+	-- Returns:
+	--   Boolean true if the last character in the word is a end of sentence special character
+	on CheckSpecialLastCharacter(last_word)
+		if length of last_word > 0 then
+			set ending_character to character (length of last_word) of last_word
+			log "CheckSpecialLastCharacter: " & ending_character
+			-- Bug, using a ) here will result in a mis-matched paren.  Short circuit as AS has no concept of escaping.
+			if ending_character is not ")" then
+				tell application "ASObjC Runner.app"
+					set ending_character to «event nÂc0nÂC0» ending_character given «class nÂP1»:«constant bÂe0bÂed»
+					set results to («event hÂc0hÂC0» end_of_sentence_characters given «class hÂP1»:{"self matches[c] '" & ending_character & "'"}) as string
+					log "CheckSpecialLastCharacter: " & results
+				end tell
+			else
+				log "Adjusting for ) escaping bug …"
+				set results to ")"
+			end if
+			if results is not "" then
+				return true
+			end if
+		end if
+		return false
+	end CheckSpecialLastCharacter
+	
+	
+	-- WordInWordsToLowerCase: Determines if the given word is a word that should be lowercased, using rules.
+	-- Args:
+	--   single_word: String word to process
+	-- Returns:
+	--   Boolean true if the word should be lowercased
+	on WordInWordsToLowerCase(single_word)
+		tell application "ASObjC Runner.app"
+			set single_word to «event nÂc0nÂC0» single_word given «class nÂP1»:«constant bÂe0bÂed»
+			-- Bug, using a ) here will result in a mis-matched paren.  Short circuit as AS has no concept of escaping.
+			if single_word is not ")" then
+				set results to («event hÂc0hÂC0» combined_lowercase_list given «class hÂP1»:{"self matches[c] '" & single_word & "'"}) as string
+			else
+				log "Adjusting for ) escaping bug …"
+				set results to ")"
+			end if
+			log results
+		end tell
+		if results is not "" then
+			return true
+		end if
+		return false
+	end WordInWordsToLowerCase
+	
+	
+	-- StringToList: Converts a string to a list of strings, breaking on passed delimeter
+	-- Args:
+	--  whole_string: String to break apart
+	--  delimeter: String to split whole_string on
+	-- Returns:
+	--  List containing strings from whole_string, broken on delimeter
+	on StringToList(whole_string, delimeter)
+		set original_delimeter to AppleScript's text item delimiters
+		try
+			set AppleScript's text item delimiters to {delimeter}
+			set string_as_list to every text item of whole_string
+		on error error_message number error_number
+			set AppleScript's text item delimiters to original_delimeter
+			error "String to list conversation error: " & error_number & " - " & error_string
+		end try
+		set AppleScript's text item delimiters to original_delimeter
+		return string_as_list
+	end StringToList
+	
+	-- ListToString: Converts a list of strings to a string, using passed delimeter to join
+	-- Args:
+	--  original_list: List containing strings to combine
+	--  delimeter: String to join list with
+	-- Returns:
+	--  String joined on delimeter for list elements
+	on ListToString(original_list, delimeter)
+		set original_delimeter to AppleScript's text item delimiters
+		try
+			set AppleScript's text item delimiters to {delimeter}
+			set whole_string to original_list as text
+		on error error_message number error_number
+			set AppleScript's text item delimiters to original_delimeter
+			error "List to string conversion error: " & error_number & " - " & error_string
+		end try
+		set AppleScript's text item delimiters to original_delimeter
+		return whole_string
+	end ListToString
+	
+	
+	-- SetupProgress: Setup a progress bar, using a template
+	-- Args:
+	--  None
+	-- Returns:
+	--  None
+	on SetupProgress()
+		tell application "ASObjC Runner.app"
+			«event aÂc0aÂC0»
+			set properties of «class aÂs8» to {«class aÂp4»:false, «class aÂp1»:"Title Casing " & selection_total_tracks & " Tracks", «class aÂp2»:"", «class aÂp7»:false, «class aÂp8»:selection_total_tracks, «class aÂpa»:selection_current_track}
+			activate
+			«event bÂc0bÂC0»
+		end tell
+	end SetupProgress
+	
+	
+	-- AdjustProgress: Updates the progress bar.
+	-- Args:
+	--  track_name: String name of the track
+	-- Returns:
+	--  None
+	-- Error:
+	--  If user quits, aborts the program
+	on AdjustProgress(track_name)
+		tell application "ASObjC Runner.app"
+			activate
+			set properties of «class aÂs8» to {«class aÂp2»:track_name, «class aÂpa»:selection_current_track}
+			if «class aÂp5» of «class aÂs8» then
+				error "User aborted Title Casing"
+			end if
+		end tell
+	end AdjustProgress
+	
+	
+	-- CloseProgress: Hides the progress bar.
+	-- Args:
+	--  None
+	-- Returns:
+	--  None
+	on CloseProgress()
+		tell application "ASObjC Runner.app" to «event cÂc0cÂC0»
+	end CloseProgress
+	
+	
+	-- DetermineAsobjcRunnerLibraryLocation: Determines the correct 'ASObjC Runnner' application to use.
+	-- Args:
+	--  None
+	-- Returns:
+	--  String path to 'ASObjC Runner' application resource to use
+	on DetermineAsobjcRunnerLibraryLocation()
+		tell application "Finder"
+			if not (exists POSIX file "/Applications/ASObjC Runner.app") then
+				log "No ASObjC Runner.app library found"
+				set results to the text of button returned of (display dialog "ASObjC Runner.app must be installed to use this script.  Please choose:" with title "ASObjC Runner.app is not on your system." with icon 2 buttons {"Abort", "Visit Wesbite", "Download"})
+				if results = "Abort" then
+					log "Action: Abort"
+				else if results = "Download" then
+					tell application "Finder"
+						open location asobjc_runner_download_url
+					end tell
+					log "Action: Download - " & asobjc_runner_download_url
+				else
+					tell application "Finder"
+						open location asobjc_runner_url
+					end tell
+					log "Action: Visting Wesbite - " & asobjc_runner_url
+				end if
+				error "Title Case: No 'ASObjC Runner.app' library found."
+			else
+				log "Using default system ASObjC Runner.app"
+			end if
+		end tell
+	end DetermineAsobjcRunnerLibraryLocation
+end using terms from

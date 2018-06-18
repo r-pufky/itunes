@@ -1,0 +1,56 @@
+(*
+"Set No Cover" for iTunes
+written by Doug Adams
+dougadams@mac.com
+
+v1.0 nov 29 05
+-- initial release
+
+Get more free AppleScripts and info on writing your own
+at Doug's AppleScripts for iTunes
+http://www.dougscripts.com/itunes/
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+Get a copy of the GNU General Public License by writing to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+or visit http://www.gnu.org/copyleft/gpl.html
+
+*)
+
+
+try
+	set no_cov_loc to ((path to home folder) as string) & "Library:iTunes:Scripts:Set No Cover:no_artwork.pict"
+on error m
+	display dialog m buttons {"Cancel"}
+	return
+end try
+
+tell application "iTunes"
+	if selection is not {} then
+		set sel to selection
+	else
+		display dialog "Select some tracks first..." buttons {"Cancel"} default button 1 with icon 2 giving up after 15
+	end if
+
+	with timeout of 30000 seconds
+		repeat with a_track in sel
+			try
+				set file_ref to open for access no_cov_loc
+				set ott to read file_ref from 513 as picture
+				close access file_ref
+				set data of artwork 1 of (a_track) to ott
+				set ott to ""
+			on error m
+				beep
+				try
+					close access file_ref
+					set ott to ""
+				end try
+			end try
+		end repeat
+	end timeout
+end tell
+

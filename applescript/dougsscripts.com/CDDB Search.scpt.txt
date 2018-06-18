@@ -1,0 +1,97 @@
+property required_version : "2.0.3"
+property search_all : true
+
+tell application "iTunes"
+	activate
+
+	try
+		-- get a list of track references
+		set these_tracks to the selection of browser window 1
+		if these_tracks is {} then error "No tracks are selected in the front window."
+		if the (count of these_tracks) is greater than 1 then ¬
+			error "Please select a single track."
+		set this_track to item 1 of these_tracks
+		set this_album to the album of this_track
+		set this_artist to the artist of this_track
+		set this_name to the name of this_track
+	on error error_message number error_number
+		if the error_number is not -128 then
+			beep
+			display dialog error_message buttons {"Cancel"} default button 1
+		else
+			error number -128
+		end if
+	end try
+end tell
+set the encoded_artist_track to my encode_text(this_artist & " " & this_name, true, true)
+set the encoded_artist to my encode_text(this_artist, true, true)
+set the encoded_track to my encode_text(this_name, true, true)
+set the encoded_album to my encode_text(this_album, true, true)
+
+-- search CDDB for the artist and track name
+set the search_artist_track to "http://www.gracenote.com/music/search.html?f=artist&f=track&q=" & encoded_artist_track & "&image=Search"
+-- search CDDB for the artist name
+set the search_artist to "http://www.gracenote.com/php/search1.php3?f=artist&q=" & encoded_artist & "&image=Search"
+-- search CDDB for the track name
+set the search_track to "http://www.gracenote.com/php/search1.php3?f=track&q=" & encoded_track & "&image=Search"
+-- search CDDB for the album name
+set the search_album to "http://www.gracenote.com/php/search1.php3?f=artist&f=disc&q=" & encoded_artist & "+" & encoded_album & "&image=Search"
+
+if search_all then
+	tell application "Finder"
+		open location search_artist_track
+		open location search_artist
+		open location search_track
+		open location search_album
+	end tell
+else
+	tell application "Finder"
+		open location search_artist
+	end tell
+end if
+
+-- this sub-routine is used to encode text
+on encode_text(this_text, encode_URL_A, encode_URL_B)
+	set the standard_characters to ¬
+		"abcdefghijklmnopqrstuvwxyz0123456789"
+	set the URL_A_chars to "$+!'/?;&@=#%><{}[]\"~`^\\|*"
+	set the URL_B_chars to ".-_:"
+	set the acceptable_characters to the standard_characters
+	if encode_URL_A is false then ¬
+		set the acceptable_characters to ¬
+			the acceptable_characters & the URL_A_chars
+	if encode_URL_B is false then ¬
+		set the acceptable_characters to ¬
+			the acceptable_characters & the URL_B_chars
+	set the encoded_text to ""
+	repeat with this_char in this_text
+		if this_char is in the acceptable_characters then
+			set the encoded_text to ¬
+				(the encoded_text & this_char)
+		else
+			set the encoded_text to ¬
+				(the encoded_text & encode_char(this_char)) as string
+		end if
+	end repeat
+	return the encoded_text
+end encode_text
+
+-- this sub-routine is used to encode a character
+on encode_char(this_char)
+	set this_char to this_char as string
+	set the ASCII_num to (the ASCII number this_char)
+	set the hex_list to ¬
+		{"0", "1", "2", "3", "4", "5", "6", "7", "8", ¬
+			"9", "A", "B", "C", "D", "E", "F"}
+	set x to item ((ASCII_num div 16) + 1) of the hex_list
+	set y to item ((ASCII_num mod 16) + 1) of the hex_list
+	return ("%" & x & y) as string
+end encode_char
+
+on access_website(this_URL)
+	ignoring application responses
+		tell application "Finder"
+			open location this_URL
+		end tell
+	end ignoring
+end access_website

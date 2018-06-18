@@ -1,0 +1,69 @@
+(* Searches Google Images for Cover Art with Sizing Subtitles.
+
+Author: Robert M. Pufky (itunes-applescripts@crazymonkies.com)
+
+
+Bundled with ASObjC Runner, which enables a ton of great features applescript lacks, as well as speed improvements:
+
+  http://macosxautomation.com/applescript/apps/runner_vanilla.html
+  
+
+SCRIPT WILL CHECK AND DIRECT YOU TO INSTALL ASObjC Runner IF NOT INSTALLED!
+
+
+Example URL to use: http://images.google.com/images?svnum=10&hl=en&lr=&safe=off&q=dave%20matthews%20band&btnG=Search&tbs=imgo:1
+*)
+
+property google_base_start_url : "http://images.google.com/images?svnum=10&hl=en&lr=&safe=off&q="
+property google_base_end_url : "&btnG=Search&tbs=imgo:1"
+property asobjc_runner_url : "http://macosxautomation.com/applescript/apps/runner_vanilla.html"
+property asobjc_runner_download_url : "http://macosxautomation.com/applescript/apps/ASObjC_Runner.zip"
+
+
+using terms from application "ASObjC Runner.app"
+	my DetermineAsobjcRunnerLibraryLocation()
+	
+	tell application "iTunes"
+		set selected_tracks to selection
+		repeat with current_track in selected_tracks
+			set track_album to current_track's album
+			tell application "ASObjC Runner.app"
+				set track_album to «event nÂc0nÂC0» track_album given «class nÂP1»:«constant bÂe0bÂe7»
+			end tell
+			set google_url to google_base_start_url & track_album & google_base_end_url
+			tell application "Finder"
+				open location google_url
+			end tell
+		end repeat
+	end tell
+	
+	-- DetermineAsobjcRunnerLibraryLocation: Determines the correct 'ASObjC Runnner' application to use.
+	-- Args:
+	--  None
+	-- Returns:
+	--  String path to 'ASObjC Runner' application resource to use
+	on DetermineAsobjcRunnerLibraryLocation()
+		tell application "Finder"
+			if not (exists POSIX file "/Applications/ASObjC Runner.app") then
+				log "No ASObjC Runner.app library found"
+				set results to the text of button returned of (display dialog "ASObjC Runner.app must be installed to use this script.  Please choose:" with title "ASObjC Runner.app is not on your system." with icon 2 buttons {"Abort", "Visit Wesbite", "Download"})
+				if results = "Abort" then
+					log "Action: Abort"
+				else if results = "Download" then
+					tell application "Finder"
+						open location asobjc_runner_download_url
+					end tell
+					log "Action: Download - " & asobjc_runner_download_url
+				else
+					tell application "Finder"
+						open location asobjc_runner_url
+					end tell
+					log "Action: Visting Wesbite - " & asobjc_runner_url
+				end if
+				error "Title Case: No 'ASObjC Runner.app' library found."
+			else
+				log "Using default system ASObjC Runner.app"
+			end if
+		end tell
+	end DetermineAsobjcRunnerLibraryLocation
+end using terms from

@@ -1,0 +1,62 @@
+(*
+Drop 1/2 star
+Robert M. Pufky
+
+This will drop the rating of a selection of songs by a 1/2 star
+*)
+
+-- --------------------------------------------------------------------
+-- Global Private Variables (you SHOULD NOT change these)
+-- --------------------------------------------------------------------
+-- script version
+property gpriversion : "1.0"
+-- --------------------------------------------------------------------
+
+initalize()
+dropstar()
+
+-- --------------------------------------------------------------------
+-- Check configuration, verify settings
+-- --------------------------------------------------------------------
+on initalize()
+	-- if iTunes is not running, we can't process anything! -- launch it!
+	tell application "Finder"
+		if (get name of every process) does not contain "iTunes" then tell application "iTunes" to launch
+	end tell
+end initalize
+
+-- --------------------------------------------------------------------
+-- Main program loop
+-- --------------------------------------------------------------------
+on dropstar()
+	-- grab the music selection from iTunes
+	tell application "iTunes" to set trackers to (get selection)
+	-- if what we have is not empty
+	if trackers is not {} then
+		-- go through the entire selection
+		repeat with i from 1 to number of items in trackers
+			-- select the current track
+			set currentTrack to item i of trackers
+			-- drop the star rating by 1/2 star
+			droprating(currentTrack)
+		end repeat
+	else
+		-- we didn't select any tracks! ... doh!
+		error "No tracks were selected."
+	end if
+end dropstar
+
+-- --------------------------------------------------------------------
+-- Drops current track rating by 10 points (1/2 star)
+-- --------------------------------------------------------------------
+on droprating(currentTrack)
+	tell application "iTunes"
+		-- goto the song, and grab the rating, only process if we have 10 points to subtract
+		tell currentTrack
+			set originalRating to rating
+			if originalRating ≥ 10 then
+				set rating of currentTrack to (originalRating - 10)
+			end if
+		end tell
+	end tell
+end droprating

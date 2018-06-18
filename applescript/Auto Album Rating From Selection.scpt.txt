@@ -1,0 +1,63 @@
+(* Set album rating based on current existing track rating, assuming each song is minmum of 1-star.
+
+Author: Robert M. Pufky (itunes-applescripts@crazymonkies.com)
+*)
+
+property default_value : ""
+property default_genre : "Not Specified"
+
+tell application "iTunes"
+	set rating_score to 0
+	set actual_track_count to 0
+	set total_tracks to 0
+	set unique_albums_processed to {}
+	set track_references to {}
+	set selected_tracks to selection
+	if selected_tracks is not {} then
+		repeat with current_track in selected_tracks
+			if (current_track's album) is not in unique_albums_processed then
+				set unique_albums_processed to unique_albums_processed & {(current_track's album)}
+				set track_references to track_references & {current_track}
+				set total_tracks to total_tracks + (current_track's track count)
+			end if
+			set actual_track_count to actual_track_count + 1
+			set rating_score to rating_score + (my DetermineStarRating((current_track's rating)))
+		end repeat
+	end if
+	set calculated_album_rating to (my AlbumRatingAssumeAllTracksMinimumOneStar(rating_score, actual_track_count, total_tracks))
+	repeat with album_track in track_references
+		set album_track's album rating to calculated_album_rating
+	end repeat
+end tell
+
+-- DetermineStarRating: Calculates the 1-5 star rating of a song
+-- Args:
+--  percent_value: Integer representing the percentage rating of a track
+-- Returns:
+--  Integer 1-5 of the equivalent 5-star rating
+on DetermineStarRating(percent_value)
+	if percent_value ≤ 20 then
+		return 1
+	else if percent_value ≤ 40 then
+		return 2
+	else if percent_value ≤ 60 then
+		return 3
+	else if percent_value ≤ 80 then
+		return 4
+	end if
+	return 5
+end DetermineStarRating
+
+-- AlbumRatingAssumeAllTracksMinimumOneStar: Determines album rating, assuming all tracks should be counted as a minimum 1-star rating
+-- Args:
+--  aggregate_score: Integer total sum of ratings for tracks
+--  track_count: Integer number of actual tracks counted in rating summary
+--  total_tracks: Integer total number of tracks that are supposed to exist, based on sum track total for all discs
+-- Returns:
+--  Integer representing the percentage rating of the entire album, assuming all tracks have a minimum rating of 1
+on AlbumRatingAssumeAllTracksMinimumOneStar(aggregate_score, track_count, total_tracks)
+	log "aggregate score: " & aggregate_score & " counted: " & track_count & " total: " & total_tracks
+	set maximum_album_rating to total_tracks * 5
+	set counted_album_rating to (aggregate_score - track_count) + total_tracks
+	return (counted_album_rating / maximum_album_rating) * 100
+end AlbumRatingAssumeAllTracksMinimumOneStar

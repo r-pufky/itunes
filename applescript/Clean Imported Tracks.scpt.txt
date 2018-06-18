@@ -1,0 +1,38 @@
+(* Cleans Imported Track Attributes.
+
+Author: Robert M. Pufky (itunes-applescripts@crazymonkies.com)
+
+Sets the following to default_value:
+lyrics, comment, composer, grouping
+
+Optionally, sets the genre to default_genre
+*)
+
+property default_value : ""
+property default_genre : "Not Specified"
+
+set dialog_text to "Clean Genre as well (set to: '" & default_genre & "')?
+
+Always cleans:
+[lyrics, comments, composer, grouping]"
+
+set question to display dialog dialog_text buttons {"Abort", "No", "Yes"}
+set clean_genre to button returned of question
+if clean_genre = "Abort" then
+	error "User canceled song tag cleaning."
+end if
+
+tell application "iTunes"
+	set selected_tracks to selection
+	if selected_tracks is not {} then
+		repeat with current_track in selected_tracks
+			set current_track's lyrics to default_value
+			set current_track's comment to default_value
+			set current_track's composer to default_value
+			set current_track's grouping to default_value
+			if clean_genre = "Yes" then
+				set current_track's genre to default_genre
+			end if
+		end repeat
+	end if
+end tell
